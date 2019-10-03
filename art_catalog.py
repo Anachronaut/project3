@@ -212,7 +212,6 @@ def find_indv_art(artist_id, title): #Finds individual artwork in artwork table 
             cur.execute('SELECT * FROM artwork WHERE title = ? AND artists_ID = ?', (title, artist_id))
             artwork = cur.fetchone()
             print()
-
             if artwork is not None:
                 return artwork
                 break
@@ -222,14 +221,19 @@ def find_indv_art(artist_id, title): #Finds individual artwork in artwork table 
                 continue
 
 def add_artist(name, email): #add artist to artists table
-    name = name.upper()
     try:
         with sqlite3.connect(db_art) as conn:
             cur = conn.cursor()
-            cur.execute('SELECT * FROM artists WHERE name = ? AND email = ?', (name, email)) #checks if entry alredy exists for artist in the artists table
+            try:
+                cur.execute('SELECT * FROM artists WHERE name = ? AND email = ?', (name, email)) #checks if entry alredy exists for artist in the artists table
+            except sqlite3.Error as e:
+                print(f'Error finding artist because {e}')
             artist = cur.fetchall()
             if not artist:
-                conn.execute('INSERT INTO artists(name, email) VALUES (?,?)', (name, email))
+                try:
+                    conn.execute('INSERT INTO artists(name, email) VALUES (?,?)', (name, email))
+                except sqlite3.Error as e:
+                    print(f'Error adding artist because {e}')
             else:
                 print()
                 print('Artist already in database')
@@ -378,4 +382,6 @@ def main():
         menu()
 
 create_tables()
-main()
+
+if __name__ == '__main__':
+    main()
