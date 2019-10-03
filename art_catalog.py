@@ -15,6 +15,7 @@ def create_tables(): #creates artists and artwork tables
     finally:
         conn.close()
 
+#***INPUT VALIDATION FUNCTIONS***
 def valid_name(name): #artist name validation
     if re.match(r'([^\s\w]|_)+', name):
         print('String cannot contain special characters.')
@@ -73,6 +74,104 @@ def valid_status(status): #availability status input validation
         return True
     else:
         return False
+#***END INPUT VALIDATION FUNCTIONS***
+
+
+#***UI: INPUT FUNCTIONS***
+def artist_name(): #Input Artist's Name
+    while True:
+        name = input("Enter the artist's name: ")
+        name = name.upper()
+        if valid_name(name):
+            continue
+        elif not valid_name(name):
+            return name
+            break
+
+def artist_email(): #Input Artist's Email
+    while True:
+        email = input ("Enter the new artist's e-mail: ")
+        if valid_email(email):
+            continue
+        elif not valid_email(email):
+            return email
+            break
+
+def art_title(): #Input Artwork Title
+    while True:
+        title = input("Enter the title of the artwork: ")
+        title = title.upper()
+        if valid_title(title):
+            continue
+        elif not valid_title(title):
+            return title
+            break
+
+def new_art_title(): #Check if new Artwork Title already exists
+    while True:
+        title = art_title()
+        with sqlite3.connect(db_art) as conn:
+            cur = conn.cursor()
+            cur.execute('SELECT * FROM artwork WHERE title = ?', (title, )) #checks if title already exists for artwork in the artwork table
+            artwork = cur.fetchone()
+            if not artwork:
+                return title
+                break
+            else:
+                print()
+                print('Artwork title already in database')
+                print()
+                continue
+
+def art_status(): #Input Artwork Status
+    while True:
+        status = input("Is the artwork AVAILABLE or SOLD?: ")
+        status = status.upper()
+        if valid_status(status):
+            print("Incorrect entry. Please enter 'AVAILABLE' or 'SOLD'")
+            continue
+        elif not valid_status(status):
+            return status
+            break
+
+def art_price(): #Input Artwork Price
+    while True:
+        try:
+            price = int(input("Enter the whole dollar price of the artwork in USD: $")) #Rounded numbers to make retrieval and sorting in sqlite easier
+        except ValueError:
+            print("Please enter a whole number")
+            continue
+        else:
+            print()
+            return price
+            break
+
+def delete_choice(title): #Input Delete Artwork Choice
+    del_list = ['DELETE', 'CANCEL']
+    while True:
+        del_choice = input("Type DELETE to delete this artwork, ("+title+"), or type CANCEL to cancel the deletion: ")
+        del_choice = del_choice.upper()
+        if del_choice not in del_list: #input validation
+            print("Incorrect entry. Please enter 'DELETE' or 'CANCEL'")
+            continue
+        else:
+            return del_choice
+            break
+
+def change_choice(): #Input Artwork Availability Status Change Choice
+    choice_list = ['Y','N']
+    while True:
+        chg_choice = input("Would you like to change the status? (Y/N): ")
+        chg_choice = chg_choice.upper()
+        print()
+        if chg_choice not in choice_list:
+            print("Invalid entry. Please enter 'Y' or 'N'")
+            continue
+        else:
+            return chg_choice
+            break
+#***END UI: INPUT FUNCTIONS***
+
 
 
 def select_art(artist_id, art_status1, art_status2): #selects either all (AVAILABLE & SOLD) or AVAILABLE artwork by artist_ID
@@ -95,63 +194,25 @@ def find_artist(name): #finds artist by name and returns their artist_ID from ar
     try:
         cur.execute('SELECT * FROM artists WHERE name = ?', (name, ))
         artist = cur.fetchone()
-        print(artist)
+        artist_id = artist[0]
         if artist is not None:
-            return artist
+            return artist_id
         elif artist is None:
             print("Artist not found")
             print()
     except sqlite3.Error:
         print('Error finding artist ID')
 
-def confirm_artist(): #confirms artist exists
-    try:
-        while True:
-            print()
-            name = input("Please enter the name of the artist: ")
-            name = name.upper()
-            print()
-            if valid_name(name):
-                continue
-            elif not valid_name(name):
-                break
-            artist = find_artist(name)
-            artist_id = artist[0]
-            if artist_id is None:
-                print("Artist not found")
-                print()
-                continue
-            else:
-                break
-    except sqlite3.Error:
-        print("Error finding artist")
-    else:
-        return name
 
-def find_art(art_status1, art_status2): #finds all or AVAILABLE art by artist name
-    print()
-    name = input("Enter the artist's name: ")
-    name = name.upper()
-    try:
-        artist = find_artist(name)
-        artist_id = artist[0]
-    except sqlite3.Error:
-        print('Error finding artist')
-    else:
-        select_art(artist_id, art_status1, art_status2)
-
-def find_indv_art(artist_id): #Finds individual artwork in artwork table by title, artists_ID
+def find_indv_art(artist_id, title): #Finds individual artwork in artwork table by title, artists_ID
     with sqlite3.connect(db_art) as conn:
         cur = conn.cursor()
         print()
         while True:
-            title = input("Please enter the title of the artwork: ")
-            title = title.upper()
-            if valid_title(title):
-                continue
             cur.execute('SELECT * FROM artwork WHERE title = ? AND artists_ID = ?', (title, artist_id))
             artwork = cur.fetchone()
             print()
+
             if artwork is not None:
                 return artwork
                 break
@@ -160,27 +221,8 @@ def find_indv_art(artist_id): #Finds individual artwork in artwork table by titl
                 print()
                 continue
 
-def add_artist(): #add artist to artists table
-    print()
-    try:
-        while True:
-            name = input("Enter the new artist's name: ")
-            name = name.upper()
-            if valid_name(name):
-                continue
-            elif not valid_name(name):
-                break
-
-        while True:
-            email = input ("Enter the new artist's e-mail: ")
-            if valid_email(email):
-                continue
-            elif not valid_email(email):
-                break
-
-    except sqlite3.Error:
-        print("Artist entry error")
-
+def add_artist(name, email): #add artist to artists table
+    name = name.upper()
     try:
         with sqlite3.connect(db_art) as conn:
             cur = conn.cursor()
@@ -197,10 +239,7 @@ def add_artist(): #add artist to artists table
     finally:
         conn.close()
 
-def add_artwork(): #add new artwork to artwork table
-    print()
-    name = input("Enter the name of the artist you would like to add Artwork for: ")
-    name = name.upper()
+def add_artwork(name, title, status, price): #add new artwork to artwork table
     with sqlite3.connect(db_art) as conn:
         cur = conn.cursor()
         try:
@@ -210,66 +249,31 @@ def add_artwork(): #add new artwork to artwork table
                 print("Artist not found, please add artist to database.")
                 print()
                 add_artist()
+            else:
+                cur.execute('SELECT * FROM artists WHERE artist_ID = ?', (artist_id, ))
+                artist = cur.fetchone()
+                name = artist[1]
         except sqlite3.Error:
             print("Artist error")
-        else:
-            try:
 
-                while True:
-                    print()
-                    title = input("Enter the title of the artwork: ")
-                    title = title.upper()
-                    if valid_title(title):
-                        continue
-                    elif not valid_title(title):
-                        print()
-                        break
+        try:
+            conn.execute('INSERT INTO artwork(artist_name, title, price, status, artists_ID) VALUES (?,?,?,?,?)', (name, title, price, status, artist_id))
+        except sqlite3.Error as e:
+            print(f'Error adding artwork to artwork table: {e}')
+        finally:
+            conn.commit()
 
-                while True:
-                    try:
-                        price = int(input("Enter the whole dollar price of the artwork in USD: $")) #Rounded numbers to make retrieval and sorting in sqlite easier
-                    except ValueError:
-                        print("Please enter a whole number")
-                        continue
-                    else:
-                        print()
-                        break
-
-                while True:
-                    status = input("Is the artwork AVAILABLE or SOLD?: ")
-                    status = status.upper()
-                    if valid_status(status):
-                        print("Incorrect entry. Please enter 'AVAILABLE' or 'SOLD'")
-                        continue
-                    elif not valid_status(status):
-                        break
-
-                conn.execute('INSERT INTO artwork(artist_name, title, price, status, artists_ID) VALUES (?,?,?,?,?)', (name, title, price, status, artist_id))
-            except sqlite3.Error as e:
-                print(f'Error adding artwork to artwork table: {e}')
-            finally:
-                conn.commit()
-
-def delete_artwork(): #delete individual artwork from artwork table by title, artists_ID
-    del_list = ['DELETE', 'CANCEL']
+def delete_artwork(name, title): #delete individual artwork from artwork table by title, artists_ID
     with sqlite3.connect(db_art) as conn:
         try:
-            name = confirm_artist()
             artist_id = find_artist(name)
         except sqlite3.Error:
             print("Artist error")
         else:
             try:
-                artwork = find_indv_art(artist_id)
+                artwork = find_indv_art(artist_id, title)
                 title = artwork[2]
-                while True:
-                    del_choice = input("Type DELETE to delete this artwork, ("+title+"), or type CANCEL to cancel the deletion: ")
-                    del_choice = del_choice.upper()
-                    if del_choice not in del_list: #input validation
-                        print("Incorrect entry. Please enter 'DELETE' or 'CANCEL'")
-                        continue
-                    else:
-                        break
+                del_choice = delete_choice(title)
                 if del_choice == 'CANCEL':
                     menu()
                 elif del_choice == 'DELETE':
@@ -277,48 +281,37 @@ def delete_artwork(): #delete individual artwork from artwork table by title, ar
                     print()
                     print("ARTWORK DELETED")
                     print()
-            except sqlite3.Error:
-                print("Error deleting artwork")
+            except sqlite3.Error as e:
+                print(f'Error deleting artwork because {e}')
             finally:
                 conn.commit()
 
-def change_status(): #change status of individual artwork from artwork table to AVAILABLE or SOLD
+def change_status(name, title): #change status of individual artwork from artwork table to AVAILABLE or SOLD
     with sqlite3.connect(db_art) as conn:
         try:
             while True:
-                name = confirm_artist()
-                artist = find_artist(name)
-                if artist is None:
+                artist_id = find_artist(name)
+                if artist_id is None:
                     continue
-                elif artist is not None:
-                    artist_id = artist[0]
+                elif artist_id is not None:
                     break
         except sqlite3.Error:
             print("Artist error")
         else:
             try:
-                artwork = find_indv_art(artist_id)
+                artwork = find_indv_art(artist_id, title)
                 title = artwork[2]
                 status = artwork[4]
                 print("Artwork is currently:", status)
                 print()
-                while True:
-                    chg_choice = input("Would you like to change the status? (Y/N): ")
-                    chg_choice = chg_choice.upper()
-                    print()
-                    if chg_choice == 'N':
-                        menu()
-                    elif chg_choice == 'Y': #checks current status and changes to opposite
-                        if status == 'AVAILABLE':
-                            new_status = 'SOLD'
-                            break
-                        elif status == 'SOLD':
-                            new_status = 'AVAILABLE'
-                            break
-                    else:
-                        print()
-                        print("Incorrect entry. Please enter 'Y' or 'N'")
-                        continue
+                chg_choice = change_choice()
+                if chg_choice == 'N':
+                    menu()
+                elif chg_choice == 'Y': #checks current status and changes to opposite
+                    if status == 'AVAILABLE':
+                        new_status = 'SOLD'
+                    elif status == 'SOLD':
+                        new_status = 'AVAILABLE'
                 conn.execute('UPDATE artwork SET status = ? WHERE title = ? AND artists_ID = ?', (new_status, title, artist_id))
                 print('Status changed to:', new_status)
             except sqlite3.Error:
@@ -326,35 +319,56 @@ def change_status(): #change status of individual artwork from artwork table to 
             finally:
                 conn.commit()
 
+
 def menu():
     while True:
         print()
         print("ARTWORK DATABASE MENU")
-        print('-'*35)
+        print('-'*40)
         print("(1) - Add a new artist")
         print("(2) - Display all art by artist")
         print("(3) - Display available art by artist")
         print("(4) - Add new artwork")
         print("(5) - Delete artwork")
         print("(6) - Update artwork availability")
-        print('-'*35)
+        print('-'*40)
         print()
         choice = input('Please choose an option, type Q to quit: ')
         if len(choice) > 1:
             print('Invalid entry')
             continue
         elif choice == '1':
-            add_artist()
+            print()
+            name = artist_name()
+            email = artist_email()
+            add_artist(name, email)
         elif choice == '2':
-            find_art('AVAILABLE', 'SOLD')
+            print()
+            name = artist_name()
+            artist_id = find_artist(name)
+            select_art(artist_id, 'AVAILABLE', 'SOLD')
         elif choice == '3':
-            find_art('AVAILABLE', 'AVAILABLE')
+            print()
+            name = artist_name()
+            artist_id = find_artist(name)
+            select_art(artist_id, 'AVAILABLE', 'AVAILABLE')
         elif choice == '4':
-            add_artwork()
+            print()
+            name = artist_name()
+            title = new_art_title()
+            status = art_status()
+            price = art_price()
+            add_artwork(name, title, status, price)
         elif choice == '5':
-            delete_artwork()
+            print()
+            name = artist_name()
+            title = art_title()
+            delete_artwork(name, title)
         elif choice == '6':
-            change_status()
+            print()
+            name = artist_name()
+            title = art_title()
+            change_status(name, title)
         elif choice == 'Q' or choice == 'q':
             quit()
         else:
